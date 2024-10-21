@@ -1,8 +1,9 @@
-import { calculatePercentageChange, fetchGet, stopBot } from './utils';
+import { Ticker } from './dto';
+import { calculatePercentageOscillation, fetchGet, getAverage, stopBot } from './utils';
 import dotenv from 'dotenv';
 
 let nodeTimeout: NodeJS.Timeout;
-let lastAskValue: number | null = null;
+let lastRate: number | null = null;
 const ALERT_THRESHOLD_PERCENTAGE = 0.01;
 const INTERVAL = 5000;
 
@@ -12,23 +13,25 @@ async function checkPairPrice() {
         return stopBot(nodeTimeout, "Undefined env variable: API_URL", true);
     }
 
-    const currentAskValue: number | null = await fetchGet(apiUrl + "ticker/BTC-USD");
+    const currentPair: Ticker | null = await fetchGet(apiUrl + "ticker/BTC-USD");
 
-    if (!currentAskValue) {
+    if (!currentPair) {
         return;
     }
 
-    if (lastAskValue === null) {
-        lastAskValue = currentAskValue;
-        console.info(`BTC-USD price is currently set to: ${currentAskValue}\n`);
+    const currentRate: number = getAverage(parseFloat(currentPair.ask), parseFloat(currentPair.bid));
+
+    if (lastRate === null) {
+        lastRate = currentRate;
+        console.info(`BTC-USD price rate is currently set to: ${currentRate}\n`);
         return;
     }
 
-    const percentageChange = calculatePercentageChange(currentAskValue, lastAskValue);
+    const percentageChange = calculatePercentageOscillation(lastRate, currentRate);
 
     if (Math.abs(percentageChange) >= ALERT_THRESHOLD_PERCENTAGE) {
-        console.warn(`BTC-USD price changed by ${percentageChange.toFixed(4)}%.\n New price: ${currentAskValue}\n`);
-        lastAskValue = currentAskValue;
+        console.warn(`BTC-USD price rate changed by ${percentageChange.toFixed(4)}%.\n New rate: ${currentRate}\n`);
+        lastRate = currentRate;
     }
 }
 
