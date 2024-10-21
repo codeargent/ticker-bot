@@ -1,12 +1,11 @@
 {
   "name": "ticket-bot",
-  "version": "0.0.1",
-  "description": "A ticker bot to receive alerts of price changes",
+  "version": "1.0.0",
+  "description": "A bot that alerts of currency price changes",
   "main": "src/index.ts",
   "scripts": {
     "build": "tsc",
-    "start": "node dist/index.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node dist/index.js"
   },
   "repository": {
     "type": "git",
@@ -21,6 +20,7 @@
   "devDependencies": {
     "@types/node": "^22.7.7",
     "axios": "^1.7.7",
+    "dotenv": "^16.4.5",
     "typescript": "^5.6.3"
   }
 }
