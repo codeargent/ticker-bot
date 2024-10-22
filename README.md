@@ -21,11 +21,12 @@ This bot uses the Uphold API to continuously retrieve the BTC-USD price at a cer
     ```bash
     cp .env.example .env
     ```
-4. Build the program
+4. Modify the file `src/bot-config.ts` at your liking in order to enable the desired crons.
+5. Build the program
     ```
     npm run build
     ```
-5. Run the program
+6. Run the program
     ```
     npm run start
     ```
