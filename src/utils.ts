@@ -1,4 +1,5 @@
 import axios from "axios";
+import * as fs from "fs";
 import { Ticker } from "./dto";
 
 export async function fetchGet(path: string): Promise<Ticker | null> {
@@ -8,7 +9,13 @@ export async function fetchGet(path: string): Promise<Ticker | null> {
         const res = await axios.get(path);
         data = res.data satisfies Ticker;
     } catch (error) {
-        console.error(`error while fetching (${path}):`, JSON.stringify(error));
+        console.error(`error while fetching: ${path}`);
+
+        if (!fs.existsSync("logs/")) {
+            fs.mkdirSync("logs/");
+        }
+
+        fs.appendFileSync("logs/log.txt", `${path}: ${JSON.stringify(error)}\n`)
         return null;
     }
 
@@ -33,16 +40,4 @@ export function getAverage(value1: number, value2: number): number {
  */
 export function calculatePercentageOscillation(lastRate: number, currentRate: number): number {
     return ((lastRate - currentRate) / getAverage(lastRate, currentRate)) * 100;
-}
-
-export function stopBot(nodeTimeout: NodeJS.Timeout, message: string, isError: boolean) {
-    clearInterval(nodeTimeout);
-
-    if (isError) {
-        console.error(message)
-        process.exit(1);
-    } else {
-        console.log(message)
-        process.exit(0);
-    }
 }
