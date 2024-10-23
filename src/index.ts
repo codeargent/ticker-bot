@@ -1,7 +1,12 @@
-import { botConfig } from './bot-config';
-import { BotConfig, RuntimeData, Ticker } from './dto';
-import { calculatePercentageOscillation, fetchGet, getAverage, handleExitSignals } from './utils';
 import dotenv from 'dotenv';
+import { DataSource } from 'typeorm';
+import { botConfig } from './bot-config';
+import { BotConfig, Ticker } from './dto';
+import { ApiLog } from './entities/api-log';
+import { PriceAlert } from './entities/price-alert';
+import { createAlert } from './repositories/price-alert.repo';
+import { calculatePercentageOscillation, fetchGet, getAverage, handleExitSignals } from './utils';
+import { appDataSource } from './data-source';
 
 dotenv.config();
 const apiUrl = process.env.API_URL;
@@ -10,35 +15,39 @@ if (!apiUrl) {
     process.exit(1);
 }
 
-const runtimeData: Record<string, RuntimeData> = {};
+const timeouts: NodeJS.Timeout[] = [];
 botConfig.forEach(config => {
     const nodeTimeout = setInterval(() => checkPairPrice(config), config.interval);
-    runtimeData[config.pair] = {
-        nodeTimeout,
-        lastRate: null
-    };
+    timeouts.push(nodeTimeout);
 });
 
 export async function checkPairPrice(config: BotConfig) {
-    let lastRate: number | null = runtimeData[config.pair].lastRate;
-    const currentPair: Ticker | null = await fetchGet(`${apiUrl}ticker/${config.pair}`);
+    const alertRepository = appDataSource.getRepository(PriceAlert);
+    const lastAlert = await alertRepository.findOne({
+        where: { pair: config.pair },
+        order: {
+            createdAt: 'DESC',
+        },
+    });
+    const lastRate = lastAlert ? lastAlert.currentRate : null;
 
+    const currentPair: Ticker | null = await fetchGet(`${apiUrl}ticker/${config.pair}`);
     if (!currentPair) return;
 
     const currentRate = getAverage(parseFloat(currentPair.ask), parseFloat(currentPair.bid));
 
     if (lastRate === null) {
-        runtimeData[config.pair].lastRate = currentRate;
+        createAlert(config.pair, currentRate, 0, 0, config.threshold, config.interval)
         console.info(`${config.pair} price rate is currently set to: ${currentRate}\n`);
         return;
     }
 
-    const percentageChange = calculatePercentageOscillation(lastRate, currentRate);
+    const percentageChange = parseFloat(calculatePercentageOscillation(lastRate, currentRate).toFixed(4));
 
     if (Math.abs(percentageChange) >= config.threshold) {
-        runtimeData[config.pair].lastRate = currentRate;
-        console.warn(`${config.pair} price rate changed by ${percentageChange.toFixed(4)}%.\n New rate: ${currentRate}\n`);
+        createAlert(config.pair, currentRate, lastRate, percentageChange, config.threshold, config.interval)
+        console.warn(`${config.pair} price rate changed by ${percentageChange}%.\n New rate: ${currentRate}\n`);
     }
 }
 
-handleExitSignals(runtimeData);
+handleExitSignals(timeouts);
