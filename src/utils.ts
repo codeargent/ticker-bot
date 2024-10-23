@@ -1,6 +1,6 @@
 import axios from "axios";
-import * as fs from "fs";
-import { RuntimeData, Ticker } from "./dto";
+import { Ticker } from "./dto";
+import { createApiLog } from "./repositories/api-log.repo";
 
 export async function fetchGet(path: string): Promise<Ticker | null> {
     let data: Ticker | null = null;
@@ -10,12 +10,7 @@ export async function fetchGet(path: string): Promise<Ticker | null> {
         data = res.data satisfies Ticker;
     } catch (error) {
         console.error(`error while fetching: ${path}`);
-
-        if (!fs.existsSync("logs/")) {
-            fs.mkdirSync("logs/");
-        }
-
-        fs.appendFileSync("logs/log.txt", `${path}: ${JSON.stringify(error)}\n`)
+        createApiLog(path, JSON.stringify(error));
         return null;
     }
 
@@ -44,16 +39,16 @@ export function calculatePercentageOscillation(lastRate: number, currentRate: nu
     return (rateDifference / midpoint) * 100;
 }
 
-export function handleExitSignals(runtimeData: Record<string, RuntimeData>) {
+export function handleExitSignals(nodeTimeouts: NodeJS.Timeout[]) {
     process.on('SIGINT', () => {
         console.log("Received termination signal: SIGINT");
-        Object.values(runtimeData).forEach((data) => clearInterval(data.nodeTimeout));
+        nodeTimeouts.forEach((nodeTimeout) => clearInterval(nodeTimeout));
         process.exit(0);
     });
 
     process.on('SIGTERM', () => {
         console.log("Received termination signal: SIGTERM");
-        Object.values(runtimeData).forEach((data) => clearInterval(data.nodeTimeout));
+        nodeTimeouts.forEach((nodeTimeout) => clearInterval(nodeTimeout));
         process.exit(0);
     });
 }
